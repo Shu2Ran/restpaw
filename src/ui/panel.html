@@ -125,11 +125,20 @@
       const phase = $('#phase');
       const ring = $('#ring');
       const started = s.phase !== 'idle';
-      const p = s.totalMs > 0 ? s.remainingMs / s.totalMs : 1;
+      // 工作结束、弹窗等决策期间：这段时间还算工作时长（引擎在继续累加），
+      // 圆环保持满环并转橘红，时钟改成递增的正数「已超时」。
+      const overtime = s.awaiting === 'work-end' && !s.frozen;
+      const p = overtime ? 1 : s.totalMs > 0 ? s.remainingMs / s.totalMs : 1;
       ring.style.strokeDasharray = C;
       ring.style.strokeDashoffset = C * (1 - p);
+      ring.classList.toggle('ring-over', overtime);
 
-      clock.textContent = started || s.awaiting ? fmt(s.remainingMs) : '–:––';
+      clock.textContent = overtime
+        ? `已超时 ${fmt(s.overMs)}`
+        : started || s.awaiting
+          ? fmt(s.remainingMs)
+          : '–:––';
+      clock.classList.toggle('over', overtime);
       phase.textContent = s.frozen
         ? '已暂停'
         : s.awaiting === 'work-end'
@@ -143,6 +152,7 @@
                 : s.phase === 'long'
                   ? '长休息'
                   : '未开始';
+      phase.classList.toggle('over', overtime);
 
       const mood = s.muted ? 'mute' : s.frozen ? 'sleepy' : started && (s.phase === 'short' || s.phase === 'long') ? 'rest' : 'work';
       const holder = $('#mascot');

@@ -8,6 +8,8 @@
   --peach: #f6d5c0;
   --blush: #f3c6cf;
   --line: #eae3d3;
+  /* 已超时（工作结束、弹窗等决策期间）的橘红 */
+  --over: #e2703a;
 }
 
 * {
@@ -386,7 +388,14 @@ body {
   stroke: var(--mint);
   stroke-width: 7;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.4s linear;
+  transition:
+    stroke-dashoffset 0.4s linear,
+    stroke 0.4s ease;
+}
+
+/* 已超时：保持满环，只换颜色 */
+.ring-fill.ring-over {
+  stroke: var(--over);
 }
 
 .ring-center {
@@ -407,11 +416,25 @@ body {
   font-size: 22px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  transition:
+    color 0.4s ease,
+    font-size 0.4s ease;
+}
+
+/* 「已超时 mm:ss」比纯数字宽，缩一号避免挤出圆环 */
+.ring-center .clock.over {
+  color: var(--over);
+  font-size: 19px;
 }
 
 .ring-center .phase {
   font-size: 11px;
   color: var(--ink-soft);
+  transition: color 0.4s ease;
+}
+
+.ring-center .phase.over {
+  color: var(--over);
 }
 
 .worked {

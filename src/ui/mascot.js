@@ -24,8 +24,13 @@
   let manifest = null;
   let manifestFailed = false;
   let activeCat = null;
-  let blinkTimer = null;
-  let blinking = false;
+  // 眨眼状态按元素独立保存：el -> { timer, reopen }
+  // 不能用模块级单例——一个窗口里有 4 个猫元素，而 render() 每秒都会被面板调用一次，
+  // 单例计时器会被无限重排，眨眼一次也触发不了；闭包捕获的 catId 还会让
+  // 工作期排下的链子一直拿旧猫画图，表现就是休息时两只猫来回跳。
+  const blink = new Map();
+
+  const moodOf = (el) => mounted.get(el) || 'work';
 
   function renderSvg(el, mood) {
     el.innerHTML = SVG;
@@ -51,7 +56,10 @@
     img.onerror = () => {
       cache[src] = false;
       for (const [el, mood] of mounted) {
-        if (el.dataset.src === src) renderSvg(el, mood);
+        if (el.dataset.src === src) {
+          clearBlink(el);
+          renderSvg(el, mood);
+        }
       }
     };
     img.src = src;
@@ -82,31 +90,65 @@
     });
   }
 
-  function scheduleBlink(el, mood, catId) {
-    if (blinkTimer) clearTimeout(blinkTimer);
-    if (el.classList.contains('cat-stretch')) return;
+  function clearBlink(el) {
+    const b = blink.get(el);
+    if (!b) return;
+    if (b.timer) clearTimeout(b.timer);
+    if (b.reopen) clearTimeout(b.reopen);
+    blink.delete(el);
+  }
+
+  // 排队一次眨眼。两个关键点：
+  //   1. 不捕获 mood / catId，触发时现读——换猫、换心情都不会画到旧图上；
+  //   2. 已有在途计时就直接返回——render() 每秒被面板调一次，
+  //      否则计时器会被无限重排，工作状态的眨眼一次都眨不出来。
+  function scheduleBlink(el) {
+    if (!manifest || manifestFailed) return;
+    if (el.classList.contains('cat-stretch')) return; // 伸懒腰时不眨
+    if (CLOSED_MOODS.includes(moodOf(el))) return; // 休息 / 犯困 / 开心 ＝ 闭眼静止
+    if (blink.has(el)) return; // 已在排队，别重排
+    const timer = setTimeout(() => {
+      const b = blink.get(el);
+      if (b) b.timer = null;
+      fireBlink(el);
+    }, 2500 + Math.floor(Math.random() * 2500));
+    blink.set(el, { timer, reopen: null });
+  }
+
+  function fireBlink(el) {
+    const mood = moodOf(el);
+    // 排队期间可能已经进了休息 / 开始伸懒腰，直接作废，绝不碰当前图片
+    if (CLOSED_MOODS.includes(mood) || el.classList.contains('cat-stretch')) {
+      clearBlink(el);
+      return;
+    }
+    const catId = activeCat;
     const closedSrc = fileFor(catId, 'rest');
-    if (!closedSrc || cache[closedSrc] === false) return;
-    const gap = 2500 + Math.floor(Math.random() * 2500);
-    blinkTimer = setTimeout(() => {
-      if (blinking || el.classList.contains('cat-stretch')) {
-        scheduleBlink(el, mood, catId);
-        return;
-      }
-      blinking = true;
-      el.style.backgroundImage = `url("${closedSrc}")`;
-      setTimeout(() => {
-        blinking = false;
-        el.dataset.src = closedSrc;
-        apply(el, mood, catId);
-        scheduleBlink(el, mood, catId);
-      }, 260);
-    }, gap);
+    if (!closedSrc || cache[closedSrc] === false) {
+      clearBlink(el);
+      return;
+    }
+    el.style.backgroundImage = `url("${closedSrc}")`;
+    // 立刻同步 dataset：保证「dataset.src 永远等于当前画面」。
+    // 否则在 260ms 窗口内切进休息时，clearBlink 会砍掉恢复定时器，
+    // 留下一张闭眼图配着过期的 dataset，下一帧又白白重绘一次。
+    el.dataset.src = closedSrc;
+    const b = blink.get(el) || { timer: null, reopen: null };
+    b.reopen = setTimeout(() => {
+      b.reopen = null;
+      // dataset 已是闭眼图，apply 会认为需要换图并切回睁眼图；
+      // 若这 260ms 里心情变成了休息，apply 算出的仍是闭眼图，于是原地不动——
+      // 既不会卡在闭眼，也不会误画睁眼图。
+      apply(el, moodOf(el), activeCat);
+      clearBlink(el);
+      scheduleBlink(el);
+    }, 260);
+    blink.set(el, b);
   }
 
   function playStretch(el) {
     if (!el || el.classList.contains('cat-fallback')) return;
-    if (blinkTimer) clearTimeout(blinkTimer);
+    clearBlink(el);
     const closedSrc = fileFor(activeCat, 'rest');
     if (!closedSrc || cache[closedSrc] === false) return;
     if (el.dataset.src === closedSrc) return;
@@ -115,7 +157,9 @@
     setTimeout(() => {
       el.classList.remove('cat-stretch');
       el.dataset.src = closedSrc;
-      apply(el, 'work', activeCat);
+      apply(el, moodOf(el), activeCat);
+      // 拉伸会把 blink 记录清掉，结束后要重新排队，否则这只猫再也不眨眼了
+      scheduleBlink(el);
     }, 900);
   }
 
@@ -134,11 +178,15 @@
   function render(el, mood) {
     if (!el) return;
     if (!manifest || manifestFailed) {
+      clearBlink(el);
       renderSvg(el, mood);
       return;
     }
     apply(el, mood, activeCat);
-    if (!CLOSED_MOODS.includes(mood)) scheduleBlink(el, mood, activeCat);
+    // 进闭眼心情（休息 / 静音 / 暂停 / 伸懒腰）必须主动作废在途眨眼：
+    // 否则工作期排下的那条链子会一路续期，拿旧 catId 反复覆盖当前图片。
+    if (CLOSED_MOODS.includes(mood) || el.classList.contains('cat-stretch')) clearBlink(el);
+    else scheduleBlink(el);
   }
 
   window.mascot = {

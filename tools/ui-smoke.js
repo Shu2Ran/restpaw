@@ -677,6 +677,130 @@ test('今日工时进度条：8 小时前显示已工作，超过显示已加班
   });
 });
 
+test('工作结束等待确认：圆环转橘红并显示递增的已超时', async () => {
+  const dir = tmpUserData();
+  const OVER = 'rgb(226, 112, 58)';
+  const seedOver = Object.assign({}, IDLE, {
+    phase: 'work',
+    deadline: NOW() - 3000, // 启动时就已经超时 3 秒
+    awaiting: 'work-end',
+    nextBreak: 'short',
+    round: 1,
+    workedMs: 3.5 * 3600000,
+    workedDay: today(),
+  });
+
+  await withApp(dir, seedOver, null, async (ctx) => {
+    const popup = await findPopup(ctx);
+    await waitVis(popup, 'popup', true);
+    await popup.evaluate(() => window.api.call('showPanel'));
+    const panel = await findPanel(ctx);
+    await waitVis(panel, 'panel', true);
+    await panel.waitForFunction(() => window.__lastState && window.__lastState.awaiting === 'work-end', null, { timeout: 5000 });
+    await sleep(800); // 等 0.4s 的 stroke / color 过渡走完，否则会读到中间色
+
+    const read = () =>
+      panel.evaluate(() => {
+        const ring = document.getElementById('ring');
+        const t = document.getElementById('clock').textContent.trim();
+        const m = t.match(/^已超时 (\d+):(\d{2})$/);
+        const fill = document.getElementById('worked-fill');
+        return {
+          clock: t,
+          seconds: m ? Number(m[1]) * 60 + Number(m[2]) : null,
+          stroke: getComputedStyle(ring).stroke,
+          offset: parseFloat(ring.style.strokeDashoffset || '0'),
+          phase: document.getElementById('phase').textContent.trim(),
+          phaseColor: getComputedStyle(document.getElementById('phase')).color,
+          barColor: getComputedStyle(fill).getPropertyValue('--bar-color').trim(),
+        };
+      });
+
+    const a = await read();
+    assert.notEqual(a.seconds, null, `时钟应显示「已超时 mm:ss」，实际 "${a.clock}"`);
+    assert.equal(a.stroke, OVER, `圆环应变橘红，实际 ${a.stroke}`);
+    assert.equal(a.phase, '该休息啦');
+    assert.equal(a.phaseColor, OVER, `阶段文案应变橘红，实际 ${a.phaseColor}`);
+    assert.ok(a.offset < 1, `超时期间圆环应保持满环，实际 dashoffset=${a.offset}`);
+    assert.ok(!/226,\s*112,\s*58/.test(a.barColor), `工时进度条配色不应受超时影响，实际 ${a.barColor}`);
+
+    await sleep(3200);
+    const b = await read();
+    assert.ok(b.seconds > a.seconds, `已超时应递增：${a.seconds}s → ${b.seconds}s`);
+  });
+
+  // 回归防护：正常工作中圆环必须仍是薄荷绿，否则「变橘红」这条断言没有判别力
+  await withApp(dir, Object.assign({}, IDLE, { phase: 'work', deadline: NOW() + 20 * 60 * 1000, workedDay: today() }), null, async (ctx) => {
+    const panel = await findPanel(ctx);
+    await waitVis(panel, 'panel', true);
+    const st = await panel.evaluate(() => getComputedStyle(document.getElementById('ring')).stroke);
+    assert.equal(st, 'rgb(168, 213, 194)', `工作中圆环应为薄荷绿，实际 ${st}`);
+  });
+});
+
+test('休息中猫眼闭着：7 秒内画面与猫都不许变', async () => {
+  const dir = tmpUserData();
+  // 必须真的走一遍「工作 → 休息」跳转：缺陷就出在工作期排下的那条眨眼链，
+  // 直接以休息态启动是测不出来的。
+  await withApp(dir, Object.assign({}, IDLE, { phase: 'work', deadline: NOW() + 9000, round: 1, workedDay: today() }), null, async (ctx) => {
+    const panel = await findPanel(ctx);
+    await waitVis(panel, 'panel', true);
+    await panel.waitForFunction(() => window.__lastState && window.__lastState.phase === 'work', null, { timeout: 5000 });
+    await sleep(1500); // 让工作期的眨眼排上队
+
+    const popup = await findPopup(ctx);
+    await waitVis(popup, 'popup', true);
+    await popup.waitForFunction(() => window.__lastState && window.__lastState.awaiting === 'work-end', null, { timeout: 15000 });
+    await popup.click('#btn-break');
+    await panel.waitForFunction(() => window.__lastState && window.__lastState.phase === 'short', null, { timeout: 8000 });
+    await sleep(600);
+
+    // 用 MutationObserver 而非轮询：260ms 的闭眼窗口再短也逃不掉
+    const r = await panel.evaluate(async () => {
+      const el = document.getElementById('mascot');
+      const changes = [];
+      const mo = new MutationObserver(() => changes.push(el.style.backgroundImage));
+      mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+      await new Promise((res) => setTimeout(res, 7000));
+      mo.disconnect();
+      return { changes, final: el.style.backgroundImage, src: el.dataset.src, cat: (window.__lastState || {}).catId };
+    });
+
+    // 断言的是「休息时绝不睁眼」这个真实不变量，而不是「一帧都不许变」：
+    // 同一张闭眼图被重复写入是无害的，而旧缺陷会不停刷出 a-open / b-open 串猫。
+    const opened = r.changes.filter((s) => /open/.test(s));
+    assert.deepEqual(opened, [], `休息期间绝不该出现睁眼图，实际 ${JSON.stringify(r.changes)}`);
+    assert.ok(/closed/.test(r.final), `休息时应显示闭眼图，实际 ${r.final}`);
+    assert.ok(/closed/.test(r.src), `dataset 应停在闭眼图，实际 ${r.src}`);
+    assert.ok(r.cat === 'a' || r.cat === 'b', `猫应保持不变，实际 ${r.cat}`);
+  });
+});
+
+test('工作中猫咪会眨眼：9 秒内出现闭眼图并自动睁回', async () => {
+  const dir = tmpUserData();
+  await withApp(dir, Object.assign({}, IDLE, { phase: 'work', deadline: NOW() + 20 * 60 * 1000, workedDay: today() }), null, async (ctx) => {
+    const panel = await findPanel(ctx);
+    await waitVis(panel, 'panel', true);
+    await panel.waitForFunction(() => window.__lastState && window.__lastState.phase === 'work', null, { timeout: 5000 });
+
+    const r = await panel.evaluate(async () => {
+      const el = document.getElementById('mascot');
+      const seen = [];
+      const mo = new MutationObserver(() => seen.push(el.style.backgroundImage));
+      mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+      await new Promise((res) => setTimeout(res, 9000));
+      mo.disconnect();
+      return { seen, final: el.style.backgroundImage, src: el.dataset.src };
+    });
+
+    // 回归防护：旧实现里 render() 每秒重排一次计时器，眨眼一次都触发不了
+    assert.ok(r.seen.length > 0, `9 秒内应至少发生一次换图（眨眼），实际 ${JSON.stringify(r.seen)}`);
+    assert.ok(r.seen.some((s) => /closed/.test(s)), `眨眼时应短暂显示闭眼图，实际 ${JSON.stringify(r.seen)}`);
+    assert.ok(/open/.test(r.final), `眨眼结束后应恢复睁眼图，实际 ${r.final}`);
+    assert.ok(/open/.test(r.src), `dataset 应回到睁眼图，实际 ${r.src}`);
+  });
+});
+
 (async () => {
   const only = process.argv[2];
   const list = only ? tests.filter((t) => t.name.includes(only)) : tests;

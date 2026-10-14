@@ -163,7 +163,17 @@ class Pomodoro {
       remainingMs: this.remainingMs(now),
       totalMs: this.totalMs(),
       workedMs: this.workedMs,
+      // 已超时：仅在工作结束、弹窗等决策期间有值。派生量，不落盘——
+      // deadline 在 _onWorkEnd 就被钉住了，now - deadline 天然就是超时秒数；
+      // 重启后 restore() 读回 deadline，超时也能接上。
+      overMs: this.overMs(now),
     };
+  }
+
+  overMs(now) {
+    now = now === undefined ? this._now() : now;
+    if (this.awaiting !== 'work-end' || this.frozen) return 0;
+    return Math.max(0, now - this.deadline);
   }
 
   start(now) {
@@ -350,13 +360,20 @@ class Pomodoro {
   }
 
   _accrueWork(now) {
-    if (this.phase === PHASE.WORK && !this.frozen && !this.awaiting) {
-      const cap = Math.min(now, this.deadline);
-      if (cap > this.lastAccrued) this.workedMs += cap - this.lastAccrued;
-      this.lastAccrued = cap;
-    } else {
+    // 工作结束后的「等待决策」期（awaiting === 'work-end'）仍然算工作时间——
+    // 人本来就在干别的，只是弹窗还没点。这段时间不计入，等于白送工时。
+    // 注意 break-end 不在条件里：phase 已是 short/long，第一个条件就挡住了。
+    const working =
+      this.phase === PHASE.WORK && !this.frozen && (!this.awaiting || this.awaiting === 'work-end');
+    if (!working) {
       this.lastAccrued = now;
+      return;
     }
+    // 等待期 deadline 已过（_onWorkEnd 把它钉在结束那一刻），Math.min 会把增量压成 0，
+    // 所以这里必须用 now 封顶。
+    const cap = this.awaiting === 'work-end' ? now : Math.min(now, this.deadline);
+    if (cap > this.lastAccrued) this.workedMs += cap - this.lastAccrued;
+    this.lastAccrued = cap;
   }
 
   _onWorkEnd(now, reason) {

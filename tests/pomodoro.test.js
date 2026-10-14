@@ -377,7 +377,7 @@ test('立即生效：等待决策 / 空闲时不改当前状态', () => {
   assert.equal(idle.engine.remainingMs(idle.now()), 30 * MIN);
 });
 
-test('今日工时累计：仅工作时段累加，冻结/休息不计', () => {
+test('今日工时累计：仅工作时段与「等决策」期累加，冻结/休息/休息结束等待期不计', () => {
   const h = makeEngine();
   const tickFor = (ms) => {
     h.advance(ms);
@@ -536,3 +536,115 @@ test('未满足前置条件的动作会抛错', () => {
   assert.throws(() => h.engine.endBreakEarly());
 });
 
+test('工作结束等待决策期间：工时继续累计，overMs 递增', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN);
+  h.engine.tick();
+  assert.equal(h.engine.awaiting, 'work-end');
+  const atEnd = h.engine.workedMs;
+  assert.ok(atEnd >= 45 * MIN - 1000, `本轮工时应已计满，实际 ${atEnd}`);
+  assert.equal(h.engine.overMs(h.now()), 0, '刚结束时已超时为 0');
+
+  h.advance(3 * MIN);
+  h.engine.tick();
+  assert.ok(
+    h.engine.workedMs >= atEnd + 3 * MIN - 1000,
+    `等决策期间应继续累计工时，实际 ${h.engine.workedMs}`
+  );
+  const over = h.engine.overMs(h.now());
+  assert.ok(over >= 3 * MIN - 1000 && over <= 3 * MIN, `overMs 应约等于等待时长，实际 ${over}`);
+  assert.equal(h.engine.getState(h.now()).overMs, over, 'overMs 应随 state 广播给三个窗口');
+});
+
+test('「稍后 5 分钟」等待期工时继续累计', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN);
+  h.engine.tick();
+  const before = h.engine.workedMs;
+
+  h.engine.snooze(5);
+  h.advance(4 * MIN);
+  h.engine.tick();
+  assert.equal(h.engine.awaiting, 'work-end', '稍后期间仍是等待决策');
+  assert.ok(
+    h.engine.workedMs >= before + 4 * MIN - 1000,
+    `稍后等待期应继续累计，实际 ${h.engine.workedMs}`
+  );
+  assert.ok(h.engine.overMs(h.now()) >= 4 * MIN - 1000, '超时应一并累加');
+});
+
+test('点「去休息」后工时立即停止累计，overMs 归零', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN);
+  h.engine.tick();
+  h.advance(2 * MIN);
+  h.engine.tick();
+  assert.ok(h.engine.overMs(h.now()) > 0);
+
+  h.engine.beginBreak();
+  assert.equal(h.engine.overMs(h.now()), 0, '进入休息后不再有超时');
+  const atBreak = h.engine.workedMs;
+  h.advance(3 * MIN);
+  h.engine.tick();
+  assert.equal(h.engine.workedMs, atBreak, '休息期间不累计');
+});
+
+test('点「跳过休息」后进入下一轮并继续累计', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN);
+  h.engine.tick();
+  h.advance(2 * MIN);
+  h.engine.tick();
+  const before = h.engine.workedMs;
+
+  h.engine.skipRest();
+  assert.equal(h.engine.awaiting, null);
+  assert.equal(h.engine.overMs(h.now()), 0, '跳过休息后超时归零');
+  h.advance(MIN);
+  h.engine.tick();
+  assert.ok(h.engine.workedMs > before, '新的一轮应继续累计工时');
+});
+
+test('会议模式压住提醒期间工时继续累计，解除后保留', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.engine.setMute(60);
+  h.advance(45 * MIN);
+  h.engine.tick();
+  assert.equal(h.engine.awaiting, 'work-end');
+  assert.ok(!h.types().includes('work-end'), '静音期间不弹窗');
+
+  h.advance(2 * MIN);
+  h.engine.tick();
+  const during = h.engine.workedMs;
+  assert.ok(during >= 47 * MIN - 1000, `静音压着等待期也应累计，实际 ${during}`);
+  assert.ok(h.engine.overMs(h.now()) >= 2 * MIN - 1000, '静音期间同样累加超时');
+
+  h.engine.clearMute();
+  assert.equal(h.engine.workedMs, during, '解除静音本身不改变累计值');
+  h.advance(MIN);
+  h.engine.tick();
+  assert.ok(h.engine.workedMs > during, '解除后继续累计');
+});
+
+test('等待决策期间冻结：overMs 归零，超时不进断点', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN);
+  h.engine.tick();
+  h.advance(2 * MIN);
+  h.engine.tick();
+  assert.ok(h.engine.overMs(h.now()) > 0);
+  assert.equal('overMs' in h.engine.toJSON(), false, '超时应是派生量，不落盘');
+
+  h.engine.pause();
+  assert.equal(h.engine.overMs(h.now()), 0, '冻结时不再显示超时');
+  const before = h.engine.workedMs;
+  h.advance(MIN);
+  h.engine.tick();
+  assert.equal(h.engine.workedMs, before, '冻结期间不累计');
+});

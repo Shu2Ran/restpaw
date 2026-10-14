@@ -11,8 +11,8 @@
 ## 命令
 
 ```bash
-npm test              # node --test → tests/*.test.js，45 条引擎/存储/抽签袋单测（无 Electron 依赖）
-node tools/ui-smoke.js 弹窗   # 只跑名字含「弹窗」的端到端用例（共 22 条）
+npm test              # node --test → tests/*.test.js，51 条引擎/存储/抽签袋单测（无 Electron 依赖）
+node tools/ui-smoke.js 弹窗   # 只跑名字含「弹窗」的端到端用例（共 25 条）
 npm run test:ui       # 跑全部 UI 端到端（Playwright 驱动 Electron）
 npm start             # 先重建图标再 electron .
 npm run icon          # tools/make-icon.js，纯 zlib 手绘，产出 build/icon.{png,ico}
@@ -45,6 +45,16 @@ UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改
 - **每个页面都要保留 `window.__lastState = s`**（popup/panel/settings 都有）——UI 测试全靠它断言。
 - **DOM id 是测试契约**，别随手改：`#btn-toggle`、`#btn-skip`、`#btn-save`、`#btn-break`、`#btn-early`、`#btn-work`、`#m-work`、`#mascot`、`#worked-label`、`#worked-fill`、`#mute-badge`。
 - 按钮文案/命令由阶段决定时，看 `panel.html` 的 `skipAction(s)`，标签与 `data-cmd` 要一起改。
+
+### 猫的眨眼（v2.2 重写，改之前先读）
+
+`mascot.js` 的眨眼调度有三条**不能破**的约束，破一条就会出现「休息时两只猫不停变化」：
+
+1. **不许闭包捕获 `mood` / `catId`** —— 触发时现读 `moodOf(el)` 和 `activeCat`。捕获旧值会让工作期排下的链子一直拿换猫前的猫画图，和面板每秒的重绘交替。
+2. **进闭眼心情（`CLOSED_MOODS`）必须主动 `clearBlink(el)`** —— `render()` 只在非闭眼心情排程，不清的话残留链子会活下来。
+3. **`scheduleBlink` 里必须有 `if (blink.has(el)) return;` 守卫** —— 面板每秒调一次 `mount()` → `render()`，没有守卫计时器会被无限重排，**眨眼一次都触发不了**。
+
+另外 `fireBlink` 画上闭眼图后必须**立刻同步 `el.dataset.src`**，否则在 260ms 窗口内切进休息会被 `clearBlink` 砍掉恢复定时器，留下「闭眼图 + 过期 dataset」。
 
 ### CSS 动画陷阱（v2.1.1 踩过）
 
