@@ -11,7 +11,7 @@
 ## 命令
 
 ```bash
-npm test              # node --test → tests/*.test.js，51 条引擎/存储/抽签袋单测（无 Electron 依赖）
+npm test              # node --test → tests/*.test.js，63 条引擎/存储/抽签袋/路径单测（无 Electron 依赖）
 node tools/ui-smoke.js 弹窗   # 只跑名字含「弹窗」的端到端用例（共 25 条）
 npm run test:ui       # 跑全部 UI 端到端（Playwright 驱动 Electron）
 npm start             # 先重建图标再 electron .
@@ -39,7 +39,8 @@ UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改
 2. **`tools/ui-smoke.js` 里硬编码了绝对路径** `'/data/usershare/AI-helper/timer'`（第 8、477、504 行）。移动或复制仓库后 `npm run test:ui` 必挂，要改成 `path.join(__dirname, '..')`。
 3. **`npm run dist:*` 会联网且必须设镜像**（见上方「命令」节），`github.com` 连不通时会静默卡 10 分钟才报错。
 4. **`src/ui/common.css` 是唯一的样式文件**，三个页面都 `<link href="common.css">` 引用同目录的这一份。根目录曾有一份同名死副本（无任何引用），已于 2026-10-14 删除，别再在根目录建。
-5. `docs/休息小助手方案.md` §3.3 的窗口尺寸已于 v2.2 订正，**以 `src/windows.js` 为准**（popup 380×352、panel 340×556、settings 372×560）。
+5. **开机自启在 Linux 上无法验证**。Electron 的 `app.setLoginItemSettings` / `getLoginItemSettings` **在 Linux 是空操作**（实测传 `openAtLogin: true` 读回仍是 `false`，`path` 被直接丢弃），只有 Windows / macOS 生效。所以决策逻辑做成了纯函数 `src/paths.js` 的 `buildLoginItemOptions(cfg, env, execPath)` 交给单测覆盖，**真机行为仍需在 Windows 上人工验证一次**（设置里勾开机自启 → 重启看是否自启）。别再写基于该 API 的 Linux UI 用例，注定失败。
+6. `docs/休息小助手方案.md` §3.3 的窗口尺寸已于 v2.2 订正，**以 `src/windows.js` 为准**（popup 380×352、panel 340×556、settings 372×560）。
 
 ## 架构约定（不读代码看不出来的）
 

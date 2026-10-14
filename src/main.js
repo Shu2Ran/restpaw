@@ -7,6 +7,7 @@ const { app, Tray, Menu, nativeImage, ipcMain, globalShortcut } = require('elect
 const Store = require('./engine/store').Store;
 const Pomodoro = require('./engine/pomodoro');
 const { CatPicker } = require('./engine/cat-picker');
+const { buildLoginItemOptions } = require('./paths');
 const createWindowManager = require('./windows');
 
 const gotLock = app.requestSingleInstanceLock();
@@ -263,7 +264,9 @@ function bootstrap() {
 
   function applyLoginItem(cfg) {
     try {
-      app.setLoginItemSettings({ openAtLogin: !!cfg.openAtLogin, args: [] });
+      // portable 版必须显式指定原始 exe 路径：它跑在 %TEMP% 的解压目录里，
+      // 照默认注册的话 Windows 清理完 %TEMP% 开机自启就静默失效了。
+      app.setLoginItemSettings(buildLoginItemOptions(cfg, process.env, process.execPath));
     } catch (e) {}
   }
 
