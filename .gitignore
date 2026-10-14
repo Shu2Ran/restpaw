@@ -1,0 +1,15 @@
+# 依赖与打包产物（out/ 约 983MB、node_modules 约 403MB）
+node_modules/
+out/
+
+# 图标由 `npm run icon` 生成（npm start / dist 前都会重跑）
+build/
+
+# 杂项
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 猫图构建管线的中间产物
+src/ui/assets/cats/*.tmp

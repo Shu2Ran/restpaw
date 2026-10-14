@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="common.css" />
+</head>
+<body class="popup">
+  <div class="card">
+    <div class="titlebar">
+      <span class="title">休息小助手</span>
+      <span class="drag-spacer"></span>
+      <button class="btn-close" id="btn-close" title="关掉（Esc）">×</button>
+    </div>
+
+    <section class="mode" data-mode="start">
+      <div class="mascot-holder" id="m-start"></div>
+      <p class="lead">新的一天，开始专注吧</p>
+      <p class="sub">准备好了就点开始，时间才走</p>
+      <div class="actions">
+        <button class="btn primary" id="btn-start">开始工作</button>
+      </div>
+      <p class="hint">Esc 关闭，稍后从面板开始</p>
+    </section>
+
+    <section class="mode" data-mode="work-end">
+      <div class="mascot-holder" id="m-work"></div>
+      <p class="lead" id="lead-work">该休息啦</p>
+      <p class="sub" id="sub-work">喝口水，看看远处吧</p>
+      <div class="actions">
+        <button class="btn primary" id="btn-break">好的，去休息</button>
+        <div class="row">
+          <button class="btn ghost" id="btn-snooze">稍后 5 分钟</button>
+          <button class="btn ghost" id="btn-skip">跳过休息</button>
+        </div>
+      </div>
+      <p class="hint">Esc 也可以快速关掉</p>
+    </section>
+
+    <section class="mode" data-mode="break">
+      <div class="mascot-holder" id="m-break"></div>
+      <span class="phase-tag" id="break-phase">休息中</span>
+      <p class="big-time" id="break-time">05:00</p>
+      <p class="sub" id="break-sub">我帮你看着时间，放心休息～</p>
+      <div class="actions">
+        <button class="btn ghost" id="btn-early">提前结束休息</button>
+      </div>
+      <p class="hint">Esc 收起来，倒计时继续</p>
+    </section>
+
+    <section class="mode" data-mode="break-end">
+      <div class="mascot-holder" id="m-end"></div>
+      <p class="lead">休息结束啦</p>
+      <p class="sub">活动一下，准备下一轮工作吧</p>
+      <div class="actions">
+        <button class="btn primary" id="btn-work">开始工作</button>
+        <button class="btn ghost" id="btn-more">再休息 5 分钟</button>
+      </div>
+      <p class="hint">Esc 也可以快速关掉</p>
+    </section>
+  </div>
+
+  <script src="mascot.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const sections = Array.from(document.querySelectorAll('.mode'));
+    let current = null;
+
+    const escClose = () => {
+      if (current === 'work-end') window.api.call('skip');
+      else window.api.call('hidePopup');
+    };
+
+    const fmt = (ms) => {
+      const s = Math.max(0, Math.round(ms / 1000));
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    };
+
+    function onState(s) {
+      window.__lastState = s;
+      if (s.catId && s.catId !== window.mascot.currentCat()) window.mascot.setCat(s.catId);
+      const mode = s.prompt;
+      if (!mode) {
+        window.api.call('hidePopup');
+        return;
+      }
+      if (mode !== current) {
+        sections.forEach((sec) => {
+          sec.style.display = sec.dataset.mode === mode ? 'flex' : 'none';
+        });
+        console.log('[popup] mode ->', mode);
+        current = mode;
+        if (mode === 'work-end') {
+          window.mascot.playStretch($('#m-work'));
+        }
+      }
+      if (mode === 'work-end') {
+        const next = s.nextBreak === 'long' ? `长休息 ${s.cfg.longMin} 分钟` : `短休 ${s.cfg.shortMin} 分钟`;
+        if (s.lastReason === 'skip') {
+          $('#lead-work').textContent = '已跳过本轮工作';
+          $('#sub-work').textContent = `接下来是${next}，喝口水，看看远处吧`;
+        } else {
+          $('#lead-work').textContent = `工作 ${s.cfg.workMin} 分钟啦～`;
+          $('#sub-work').textContent = `接下来是${next}，喝口水，看看远处吧`;
+        }
+      } else if (mode === 'break') {
+        $('#break-phase').textContent = s.phase === 'long' ? '长休息中' : '休息中';
+        $('#break-time').textContent = fmt(s.remainingMs);
+      }
+    }
+
+    window.mascot.mount($('#m-start'), 'work');
+    window.mascot.mount($('#m-work'), 'work');
+    window.mascot.mount($('#m-break'), 'rest');
+    window.mascot.mount($('#m-end'), 'happy');
+
+    const applyStates = (s) => {
+      const pairs = [
+        [$('#m-start'), 'work', false],
+        [$('#m-work'), 'work', !s.muted && !s.frozen],
+        [$('#m-break'), 'rest', false],
+        [$('#m-end'), 'happy', false],
+      ];
+      for (const [el, mood, sway] of pairs) {
+        if (!el) continue;
+        el.classList.toggle('cat-mute', !!s.muted);
+        el.classList.toggle('cat-sleepy', !s.muted && !!s.frozen);
+        el.classList.toggle('cat-sway', window.mascot.hasPhotos() && sway);
+      }
+    };
+    window.api.onState((s) => {
+      onState(s);
+      applyStates(s);
+    });
+
+    $('#btn-start').addEventListener('click', async () => {
+      await window.api.call('start');
+      window.api.call('showPanel');
+    });
+    $('#btn-break').addEventListener('click', () => window.api.call('beginBreak'));
+    $('#btn-snooze').addEventListener('click', () => window.api.call('snooze', { minutes: 5 }));
+    $('#btn-skip').addEventListener('click', () => window.api.call('skip'));
+    $('#btn-early').addEventListener('click', () => window.api.call('endBreakEarly'));
+    $('#btn-work').addEventListener('click', () => window.api.call('beginWork'));
+    $('#btn-more').addEventListener('click', () => window.api.call('extendBreak', { minutes: 5 }));
+    $('#btn-close').addEventListener('click', escClose);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') escClose();
+    });
+  </script>
+</body>
+</html>

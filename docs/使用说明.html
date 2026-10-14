@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>休息小助手 · 使用说明</title>
+<style>
+  :root {
+    --bg: #fbf7ef;
+    --card: #fffdf8;
+    --ink: #5a574f;
+    --muted: #8c8779;
+    --brand: #4a9d7e;
+    --brand-soft: #eef6f1;
+    --mint: #a8d5c2;
+    --peach: #f6d5c0;
+    --blush: #f3c6cf;
+    --amber: #b45309;
+    --amber-soft: #fef3e2;
+    --red: #c26a6a;
+    --red-soft: #fbf1f1;
+    --line: #eae3d3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.75;
+    padding-bottom: 80px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  header {
+    text-align: center;
+    padding: 56px 20px 30px;
+  }
+  .mascot { width: 120px; height: 120px; margin: 0 auto 8px; animation: breathe 3.2s ease-in-out infinite; transform-origin: 50% 62%; }
+  @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: 0.5px; }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .ver { display:inline-block; margin-top:12px; font-size:12px; color:var(--brand); background:var(--brand-soft); border-radius:999px; padding:3px 14px; }
+
+  h2 {
+    font-size: 20px; margin: 40px 0 14px; padding-left: 12px;
+    border-left: 4px solid var(--mint); line-height: 1.4;
+  }
+  h3 { font-size: 16px; margin: 22px 0 8px; color: var(--ink); }
+  p { margin: 8px 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 22px; margin: 12px 0;
+    box-shadow: 0 4px 16px rgba(90,87,79,0.05);
+  }
+  ul, ol { margin: 8px 0 8px 22px; }
+  li { margin: 5px 0; }
+  code {
+    background: var(--brand-soft); color: var(--brand); border-radius: 6px;
+    padding: 1px 6px; font-size: 13px; font-family: ui-monospace, Consolas, monospace;
+  }
+  pre {
+    background: #2f3a35; color: #e8f0ec; border-radius: 10px; padding: 12px 16px;
+    overflow-x: auto; font-size: 13px; font-family: ui-monospace, Consolas, monospace; margin: 10px 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--brand-soft); font-weight: 600; color: var(--ink); }
+  td.k { font-weight: 600; white-space: nowrap; }
+  .tip, .warn {
+    border-radius: 10px; padding: 10px 16px; margin: 12px 0; font-size: 14px;
+    border-left: 4px solid;
+  }
+  .tip { background: var(--brand-soft); border-color: var(--brand); }
+  .warn { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+  .danger { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+  kbd {
+    display: inline-block; padding: 1px 8px; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 6px; background: #fff; font-size: 12px; font-family: ui-monospace, monospace;
+  }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  .steps li { margin: 10px 0; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 50px; }
+  .badge {
+    display: inline-block; font-size: 12px; border-radius: 999px; padding: 2px 10px;
+    background: var(--brand-soft); color: var(--brand); margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mascot">
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="#e4dac8" stroke-width="3" stroke-linejoin="round">
+        <path d="M32 48 L40 14 L63 33 Z" fill="#fffdf8"/>
+        <path d="M88 48 L80 14 L57 33 Z" fill="#fffdf8"/>
+        <path d="M40 42 L44 26 L56 35 Z" fill="#f3c0ca" stroke="none"/>
+        <path d="M80 42 L76 26 L64 35 Z" fill="#f3c0ca" stroke="none"/>
+      </g>
+      <ellipse cx="60" cy="66" rx="42" ry="38" fill="#fffdf8" stroke="#e4dac8" stroke-width="3"/>
+      <g stroke="#4a4844" stroke-width="3" stroke-linecap="round" fill="none">
+        <path d="M41 62 q4 -6 8 0"/>
+        <path d="M71 62 q4 -6 8 0"/>
+      </g>
+      <ellipse cx="34" cy="76" rx="6" ry="3.6" fill="#f3c0ca" opacity="0.85"/>
+      <ellipse cx="86" cy="76" rx="6" ry="3.6" fill="#f3c0ca" opacity="0.85"/>
+      <path d="M54 75 q6 6 12 0" stroke="#4a4844" stroke-width="3" stroke-linecap="round" fill="none"/>
+    </svg>
+  </div>
+  <h1>休息小助手</h1>
+  <p class="sub">一只住在托盘里的小猫，陪你番茄式工作与休息</p>
+  <span class="ver">v1.4 · 本地离线 · 不联网 · 数据只存本机</span>
+</header>
+
+<div class="wrap">
+
+  <h2>一、它是什么</h2>
+  <div class="card">
+    <p>一个轻量的桌面计时小工具（基于 Electron），常驻系统托盘，按「工作 → 休息」的节奏提醒你起身活动。所有数据只保存在你自己的电脑上，<strong>不联网、不上传、无账号</strong>。</p>
+    <div class="grid" style="margin-top:14px">
+      <div>
+        <span class="badge">默认节奏</span>工作 45 分钟 → 短休 5 分钟，<br>每 4 轮来一次 15 分钟长休（都可改）
+      </div>
+      <div>
+        <span class="badge">随时可走</span>开会 / 领导在场时，<br>一键进入「会议模式」静音提醒
+      </div>
+    </div>
+  </div>
+
+  <h2>二、快速开始</h2>
+  <div class="card">
+    <h3>Windows</h3>
+    <ol class="steps">
+      <li>拿到 <code>休息小助手 1.0.0.exe</code>（约 100MB，单文件）。</li>
+      <li>双击运行，无需安装、无需联网。</li>
+      <li>首次启动，Windows 可能提示「未知发布者」→ 点「更多信息 → 仍要运行」。</li>
+      <li>右下角托盘出现小猫图标即已启动。</li>
+    </ol>
+    <h3>macOS / Linux</h3>
+    <p>本工具主要面向 Windows 与 Linux（托盘）。若在某些桌面环境（如原生 GNOME）看不到托盘图标，可直接用快捷键 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> 唤出面板。</p>
+  </div>
+
+  <h2>三、界面一览</h2>
+
+  <div class="card">
+    <h3>每天第一次打开：先问一句「开始工作吗」</h3>
+    <p>程序在<strong>空闲状态</strong>启动时（比如每天早上的第一次打开），不会直接开始计时，而是先弹一个确认窗：</p>
+    <ul>
+      <li><strong>开始工作</strong> — 点击后才开始本轮计时，并自动显示主面板。</li>
+      <li>直接关掉（<kbd>Esc</kbd> 或 ×）— 什么都不开始，程序留在托盘待命；之后可用 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> 唤出面板点「开始」。</li>
+    </ul>
+    <p>如果你<strong>同一天中途关掉又打开</strong>，而上次那轮工作还没走完，程序会<strong>接着走</strong>（断点续跑），不会重新问你。只有跨天了才会清零。</p>
+  </div>
+
+  <h3>主面板（点托盘图标或按快捷键打开）</h3>
+  <div class="card">
+    <table>
+      <tr><td class="k">大圆环 + 倒计时</td><td>当前阶段与剩余时间；面板里是<strong>你家的猫</strong>——它会呼吸、轻轻摇摆、每隔几秒眨一次眼；<strong>鼠标移到它身上会歪头「看过来」</strong>。两只猫按抽签方式轮换（公平保证每猫各占一半，且不会连着三轮都是同一只，约七成轮次能看到两只）。静音时它安静下来变灰。</td></tr>
+      <tr><td class="k">今日已工作进度条</td><td>满格代表 8 小时。<strong>6 小时内是薄荷绿，6→8 小时由绿经琥珀黄渐变为红，超过 8 小时变红</strong>并显示「已加班：xx」（文字同步变红）。进度条始终保持满格，超出部分靠文字体现。</td></tr>
+      <tr><td class="k">今日统计四格</td><td>工作轮 / 已休息 / 跳过工作 / 跳过休息，跨天自动清零。</td></tr>
+      <tr><td class="k">开始 / 暂停</td><td>控制整个计时；暂停会冻结倒计时与工时统计。</td></tr>
+      <tr><td class="k">跳过本轮</td><td>工作中=跳过工作；待决策=去休息；休息中=跳过休息。</td></tr>
+      <tr><td class="k">会议模式</td><td>下拉选择静音方式，详见下一节。</td></tr>
+      <tr><td class="k">设置 / 退出</td><td>打开设置面板；彻底关闭程序。</td></tr>
+    </table>
+  </div>
+
+  <h3>提醒弹窗（到点自动弹出）</h3>
+  <div class="card">
+    <p><strong>工作到点</strong>时会温柔地提醒你：</p>
+    <ul>
+      <li><strong>好的，去休息</strong> — 开始短休/长休倒计时。</li>
+      <li><strong>稍后 5 分钟</strong> — 5 分钟后再提醒一次（继续累计到点时间）。</li>
+      <li><strong>跳过休息</strong> — 直接进入下一轮工作（计入「跳过休息」）。</li>
+    </ul>
+    <p><strong>休息到点</strong>时，会先问你要不要开始工作：</p>
+    <ul>
+      <li><strong>开始工作</strong> — 点击后<strong>才开始</strong>本轮工作计时。</li>
+      <li><strong>再休息 5 分钟</strong> — 继续休息 5 分钟后再问。</li>
+    </ul>
+    <p>任意时刻按 <kbd>Esc</kbd> 或点右上角 <strong>×</strong> 可立刻关掉弹窗；开会/领导经过时一键秒关。</p>
+    <div class="tip">猫的小动作：工作结束的弹窗弹出时，里面的猫会先<strong>伸个懒腰</strong>再闭眼休息；<strong>鼠标移到面板的猫身上</strong>，它会歪头「看过来」。</div>
+    <div class="tip">工作<strong>永远不会自动开始</strong>——每次都是从休息转入工作时，都需要你点一次「开始工作」，避免你还没准备好就进入倒计时。</div>
+  </div>
+
+  <h2>四、会议模式（静音提醒）</h2>
+  <div class="card">
+    <p>开会、领导在旁时担心弹窗打扰？在面板或托盘菜单选一种静音方式：</p>
+    <table>
+      <tr><td class="k">到工作时间结束</td><td>静音到本轮工作结束；一旦时间到就弹窗提醒你。（推荐）</td></tr>
+      <tr><td class="k">15 / 30 / 60 分钟</td><td>定时静音，到期后若有到点提醒则补弹一次。</td></tr>
+      <tr><td class="k">手动恢复</td><td>一直静音，直到你手动选「关」才恢复；期间不弹窗。</td></tr>
+    </table>
+    <div class="tip">会议模式<strong>只静音弹窗、时钟照走</strong>，工作时长与今日工时照常累计。如果你希望开会期间<strong>既不计时也不计工时</strong>，请改用「暂停」。</div>
+  </div>
+
+  <h2>五、设置</h2>
+  <div class="card">
+    <p>点面板底部「设置」打开。所有改动即时保存，保存后窗口会自动关闭。</p>
+    <table>
+      <tr><td class="k">工作时长</td><td>一轮专注工作的分钟数（1–240）。</td></tr>
+      <tr><td class="k">短休息时长</td><td>每轮之间短休息的分钟数（1–60）。</td></tr>
+      <tr><td class="k">长休息时长</td><td>长休息的分钟数（5–120）。</td></tr>
+      <tr><td class="k">第几轮后长休</td><td>每完成几轮工作安排一次长休息（2–8）。</td></tr>
+      <tr><td class="k">时长改动生效</td><td><strong>下一轮</strong>（本轮按原时长走完）或<strong>立即</strong>（按新时长重算当前剩余；已超时则立即结束本轮）。</td></tr>
+      <tr><td class="k">开机自动启动</td><td>开机自动在托盘启动。</td></tr>
+    </table>
+  </div>
+
+  <h2>六、配置文件位置</h2>
+  <div class="card">
+    <p>程序的数据都在系统的用户配置目录下，目录名随产品名 <code>休息小助手</code>：</p>
+    <table>
+      <tr><td class="k">Windows</td><td><code>C:\Users\&lt;你的用户名&gt;\AppData\Roaming\休息小助手\</code></td></tr>
+      <tr><td class="k">Linux</td><td><code>~/.config/休息小助手/</code></td></tr>
+    </table>
+    <p>里面有 3 个文件：</p>
+    <ul>
+      <li><code>config.json</code> — 各项设置（可直接编辑，改完重启生效）。</li>
+      <li><code>state.json</code> — 计时断点，用于关掉程序后重开继续。</li>
+      <li><code>stats.json</code> — 今日统计，跨天自动清零。</li>
+    </ul>
+    <div class="warn">这些文件只是这个工具自己的数据，与系统无关。想重置一切，删掉这个目录即可，下次启动会重新生成。</div>
+  </div>
+
+  <h2>七、快捷键与托盘</h2>
+  <div class="card">
+    <table>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd></td><td>随时唤出/隐藏主面板（不依赖托盘，最稳妥）。</td></tr>
+      <tr><td class="k"><kbd>Esc</kbd></td><td>在提醒弹窗按下即关闭该弹窗。</td></tr>
+      <tr><td class="k">托盘左键</td><td>打开 / 收起面板。</td></tr>
+      <tr><td class="k">托盘右键</td><td>Windows 上弹出菜单（开始/暂停、跳过、会议模式、设置、退出）；Linux 上可能表现为打开面板。</td></tr>
+    </table>
+    <div class="tip"><strong>关掉窗口 ≠ 退出。</strong>点面板的 × 只是收起到托盘，程序仍在后台计时。要真正退出，请用面板底部「退出」按钮，或托盘右键菜单里的「退出小程序」。</div>
+  </div>
+
+  <h2>八、常见问题</h2>
+  <div class="card">
+    <table>
+      <tr><td class="k">找不到托盘图标？</td><td>部分桌面环境（如原生 GNOME）不显示托盘。用快捷键 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> 唤出面板即可。</td></tr>
+      <tr><td class="k">托盘右键没反应/菜单空白？</td><td>某些桌面（实测 UKUI）会吞掉托盘右键。改用左键点图标或快捷键打开面板即可，功能完全一样。</td></tr>
+      <tr><td class="k">程序怎么完全关闭？</td><td>面板底部「退出」按钮，或托盘右键「退出小程序」。</td></tr>
+      <tr><td class="k">换电脑 / 搬数据</td><td>把第 6 节那个目录下的 3 个 json 拷到新电脑对应位置即可（路径见上）。</td></tr>
+    </table>
+  </div>
+
+  <h2>九、后续规划</h2>
+  <div class="card">
+    <p>当前版本专注「安静地提醒」。后续计划加入<strong>桌宠</strong>：一只真实小猫形象在桌面走来走去，代替静态弹窗来提醒你休息。当前版本已为该功能预留了接口与素材目录，不影响日后平滑升级。</p>
+  </div>
+
+  <footer>休息小助手 v1.4 · 本地运行 · 不联网 · 祝你劳逸结合 ♡</footer>
+</div>
+
+</body>
+</html>

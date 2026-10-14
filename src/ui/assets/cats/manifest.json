@@ -1,0 +1,15 @@
+{
+  "size": 512,
+  "cats": [
+    {
+      "id": "a",
+      "open": "a-open.png",
+      "closed": "a-closed.png"
+    },
+    {
+      "id": "b",
+      "open": "b-open.png",
+      "closed": "b-closed.png"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "name": "restpaw",
+  "productName": "休息小助手",
+  "desktopName": "RestPaw",
+  "version": "1.0.0",
+  "description": "轻量可爱的番茄式休息提醒小工具（托盘常驻）",
+  "main": "src/main.js",
+  "license": "MIT",
+  "private": true,
+  "author": "ziyang",
+  "scripts": {
+    "start": "npm run icon && node node_modules/electron/cli.js .",
+    "test": "node --test",
+    "test:ui": "node tools/ui-smoke.js",
+    "icon": "node tools/make-icon.js",
+    "dist:win": "npm run icon && node node_modules/electron-builder/cli.js --win portable",
+    "dist:linux": "npm run icon && node node_modules/electron-builder/cli.js --linux AppImage tar.gz",
+    "pack:dir": "node node_modules/electron-builder/cli.js --dir"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "playwright-core": "^1.64.0"
+  },
+  "build": {
+    "appId": "com.restpaw.app",
+    "productName": "休息小助手",
+    "directories": {
+      "output": "out",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.png",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "syncDesktopName": true
+    }
+  }
+}

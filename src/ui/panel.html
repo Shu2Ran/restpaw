@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="common.css" />
+</head>
+<body class="panel">
+  <div class="card">
+    <div class="titlebar">
+      <span class="title">休息小助手</span>
+      <span class="drag-spacer"></span>
+      <button class="btn-close" id="btn-hide" title="收起">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120">
+          <circle class="ring-track" cx="60" cy="60" r="52" />
+          <circle class="ring-fill" id="ring" cx="60" cy="60" r="52" transform="rotate(-90 60 60)" />
+        </svg>
+        <div class="ring-center">
+          <div class="mascot-holder" id="mascot"></div>
+          <div class="clock" id="clock">45:00</div>
+          <div class="phase" id="phase">未开始</div>
+        </div>
+      </div>
+
+      <div class="worked">
+        <div class="worked-label" id="worked-label">今日已工作：0分</div>
+        <div class="bar"><div class="bar-fill" id="worked-fill"></div></div>
+      </div>
+
+      <div class="badge hidden" id="mute-badge">会议模式 29:51</div>
+
+      <div class="stats">
+        <div class="stat"><div class="num" id="st-work">0</div><div class="lab">工作轮</div></div>
+        <div class="stat"><div class="num" id="st-rest">0</div><div class="lab">已休息</div></div>
+        <div class="stat"><div class="num" id="st-skipw">0</div><div class="lab">跳过工作</div></div>
+        <div class="stat"><div class="num" id="st-skipr">0</div><div class="lab">跳过休息</div></div>
+      </div>
+
+      <div class="panel-actions">
+        <button class="btn primary" id="btn-toggle">开始</button>
+        <button class="btn ghost" id="btn-skip">跳过工作</button>
+      </div>
+      <div class="panel-actions">
+        <select class="btn ghost mute-select" id="sel-mute" title="开会、领导在时选一段时间静音，随时可选「关」恢复">
+          <option value="work">会议模式：到工作时间结束</option>
+          <option value="15">会议模式：15 分钟</option>
+          <option value="30">会议模式：30 分钟</option>
+          <option value="60">会议模式：60 分钟</option>
+          <option value="manual">会议模式：手动恢复</option>
+          <option value="0">会议模式：关</option>
+        </select>
+      </div>
+      <div class="panel-actions">
+        <button class="btn ghost" id="btn-settings">设置</button>
+        <button class="btn ghost danger" id="btn-quit">退出</button>
+      </div>
+      <p class="hint">面板可用 Ctrl+Alt+R 唤出</p>
+    </div>
+  </div>
+
+  <script src="mascot.js"></script>
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const R = 52;
+    const C = 2 * Math.PI * R;
+
+    const fmt = (ms) => {
+      const s = Math.max(0, Math.round(ms / 1000));
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    };
+
+    const fmtDur = (ms) => {
+      const mins = Math.floor(ms / 60000);
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      if (h && m) return `${h}小时${m}分`;
+      if (h) return `${h}小时`;
+      return `${m}分`;
+    };
+
+    const WORKDAY_MS = 8 * 60 * 60 * 1000;
+    const WARN_MS = 6 * 60 * 60 * 1000;
+
+    const MINT = [139, 191, 168];
+    const AMBER = [222, 178, 74];
+    const RED = [192, 80, 63];
+
+    const blend = (a, b, t) => {
+      const v = a.map((x, i) => Math.round(x + (b[i] - x) * t));
+      return `rgb(${v[0]}, ${v[1]}, ${v[2]})`;
+    };
+
+    const barColor = (hours) => {
+      if (hours <= 6) return `rgb(${MINT[0]}, ${MINT[1]}, ${MINT[2]})`;
+      if (hours >= 8) return `rgb(${RED[0]}, ${RED[1]}, ${RED[2]})`;
+      const t = (hours - 6) / 2;
+      return t < 0.5 ? blend(MINT, AMBER, t * 2) : blend(AMBER, RED, (t - 0.5) * 2);
+    };
+
+    function muteSelectValue(s) {
+      if (!s.muted) return 'work';
+      if (s.muteMode === 'manual') return 'manual';
+      if (s.muteMode === 'work') return 'work';
+      const mins = Math.round((s.muteUntil - Date.now()) / 60000);
+      if (mins > 45) return '60';
+      if (mins > 22) return '30';
+      if (mins > 0) return '15';
+      return '0';
+    }
+
+    function skipAction(s) {
+      if (s.phase === 'idle') return { label: '跳过本轮', cmd: null };
+      if (s.awaiting === 'work-end') return { label: '去休息', cmd: 'beginBreak' };
+      if (s.awaiting === 'break-end') return { label: '开始工作', cmd: 'beginWork' };
+      if (s.phase === 'work') return { label: '跳过工作', cmd: 'skipWork' };
+      return { label: '跳过休息', cmd: 'endBreakEarly' };
+    }
+
+    function onState(s) {
+      window.__lastState = s;
+      if (s.catId && s.catId !== window.mascot.currentCat()) window.mascot.setCat(s.catId);
+      const clock = $('#clock');
+      const phase = $('#phase');
+      const ring = $('#ring');
+      const started = s.phase !== 'idle';
+      const p = s.totalMs > 0 ? s.remainingMs / s.totalMs : 1;
+      ring.style.strokeDasharray = C;
+      ring.style.strokeDashoffset = C * (1 - p);
+
+      clock.textContent = started || s.awaiting ? fmt(s.remainingMs) : '–:––';
+      phase.textContent = s.frozen
+        ? '已暂停'
+        : s.awaiting === 'work-end'
+          ? '该休息啦'
+          : s.awaiting === 'break-end'
+            ? '休息结束'
+            : s.phase === 'work'
+              ? '工作中'
+              : s.phase === 'short'
+                ? '短休息'
+                : s.phase === 'long'
+                  ? '长休息'
+                  : '未开始';
+
+      const mood = s.muted ? 'mute' : s.frozen ? 'sleepy' : started && (s.phase === 'short' || s.phase === 'long') ? 'rest' : 'work';
+      const holder = $('#mascot');
+      holder.classList.toggle('cat-mute', !!s.muted);
+      holder.classList.toggle('cat-sleepy', !s.muted && !!s.frozen);
+      holder.classList.toggle('cat-sway', window.mascot.hasPhotos() && mood === 'work' && !s.muted && !s.frozen);
+      window.mascot.mount(holder, mood);
+
+      $('#btn-toggle').textContent = !started ? '开始' : s.frozen ? '继续' : '暂停';
+
+      const skipBtn = $('#btn-skip');
+      const act = skipAction(s);
+      skipBtn.textContent = act.label;
+      skipBtn.disabled = !act.cmd;
+      skipBtn.dataset.cmd = act.cmd || '';
+
+      const worked = s.workedMs || 0;
+      const hours = worked / 3600000;
+      const over = worked > WORKDAY_MS;
+      const label = $('#worked-label');
+      label.textContent = over ? `已加班：${fmtDur(worked - WORKDAY_MS)}` : `今日已工作：${fmtDur(worked)}`;
+      label.classList.toggle('over', over);
+      const fill = $('#worked-fill');
+      fill.style.width = `${Math.min(100, (worked / WORKDAY_MS) * 100)}%`;
+      fill.style.setProperty('--bar-color', barColor(hours));
+      fill.classList.toggle('over', over);
+
+      const badge = $('#mute-badge');
+      if (s.muted) {
+        const left = s.muteUntil === Infinity ? '手动' : fmt(s.muteUntil - Date.now());
+        const mode = s.muteMode === 'manual' ? '手动' : s.muteMode === 'work' ? '到工作时间结束' : '';
+        badge.textContent = `会议模式 ${left}，已静音${mode ? `（${mode}）` : ''}`;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      $('#sel-mute').value = muteSelectValue(s);
+
+      $('#st-work').textContent = s.stats.workRounds;
+      $('#st-rest').textContent = s.stats.shortRests + s.stats.longRests;
+      $('#st-skipw').textContent = s.stats.skippedWorks || 0;
+      $('#st-skipr').textContent = s.stats.skippedRests || 0;
+    }
+
+    window.mascot.mount($('#mascot'), 'work');
+
+    const mascotEl = $('#mascot');
+    mascotEl.addEventListener('mouseenter', () => window.mascot.setHover(mascotEl, true));
+    mascotEl.addEventListener('mouseleave', () => window.mascot.setHover(mascotEl, false));
+    document.addEventListener('mouseleave', () => window.mascot.setHover(mascotEl, false));
+
+    window.api.onState(onState);
+
+    $('#btn-toggle').addEventListener('click', () => window.api.call('toggleTimer'));
+    $('#btn-skip').addEventListener('click', (e) => {
+      const cmd = e.currentTarget.dataset.cmd;
+      if (cmd) window.api.call(cmd);
+    });
+    $('#btn-hide').addEventListener('click', () => window.api.call('hidePanel'));
+    $('#btn-settings').addEventListener('click', () => window.api.call('openSettings'));
+    $('#btn-quit').addEventListener('click', () => window.api.call('quit'));
+    $('#sel-mute').addEventListener('change', (e) => {
+      const v = e.target.value;
+      if (v === '0') window.api.call('unmute');
+      else if (v === 'work') window.api.call('mute', { mode: 'work' });
+      else if (v === 'manual') window.api.call('mute', { minutes: null });
+      else window.api.call('mute', { minutes: Number(v) });
+    });
+  </script>
+</body>
+</html>

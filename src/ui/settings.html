@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="common.css" />
+</head>
+<body class="settings">
+  <div class="card">
+    <div class="titlebar">
+      <span class="title">设置</span>
+      <span class="drag-spacer"></span>
+      <button class="btn-close" id="btn-close" title="关闭">×</button>
+    </div>
+    <form id="form" onsubmit="return false">
+      <div class="field">
+        <label for="workMin">工作时长</label>
+        <span style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="workMin" min="1" max="240" step="1" />
+          <span class="unit">分钟</span>
+        </span>
+      </div>
+      <div class="field">
+        <label for="shortMin">短休息时长</label>
+        <span style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="shortMin" min="1" max="60" step="1" />
+          <span class="unit">分钟</span>
+        </span>
+      </div>
+      <div class="field">
+        <label for="longMin">长休息时长</label>
+        <span style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="longMin" min="5" max="120" step="1" />
+          <span class="unit">分钟</span>
+        </span>
+      </div>
+      <div class="field">
+        <label for="roundsBeforeLong">第几轮工作后</label>
+        <span style="display:flex;align-items:center;gap:6px">
+          <input type="number" id="roundsBeforeLong" min="2" max="8" step="1" />
+          <span class="unit">轮</span>
+        </span>
+      </div>
+      <div class="field">
+        <label>时长改动生效</label>
+        <span class="apply-choices">
+          <label><input type="radio" name="apply" value="next" checked /> 下一轮</label>
+          <label><input type="radio" name="apply" value="now" /> 立即</label>
+        </span>
+      </div>
+      <div class="field">
+        <label for="openAtLogin">开机自动启动</label>
+        <input type="checkbox" id="openAtLogin" />
+      </div>
+      <div class="save-row">
+        <button class="btn primary" id="btn-save" type="submit">保存</button>
+        <span class="toast" id="toast">已保存</span>
+      </div>
+      <p class="hint">「立即」按新时长重算当前轮剩余（已进行超过新时长则立即结束本轮）<br />本地运行，不联网</p>
+    </form>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const num = (id) => Number($(id).value);
+    const applyMode = () => (document.querySelector('input[name="apply"]:checked') || {}).value === 'now';
+
+    async function load() {
+      const cfg = await window.api.call('getConfig');
+      $('#workMin').value = cfg.workMin;
+      $('#shortMin').value = cfg.shortMin;
+      $('#longMin').value = cfg.longMin;
+      $('#roundsBeforeLong').value = cfg.roundsBeforeLong;
+      $('#openAtLogin').checked = !!cfg.openAtLogin;
+    }
+
+    $('#btn-save').addEventListener('click', async () => {
+      const immediate = applyMode();
+      await window.api.call('saveConfig', {
+        workMin: num('#workMin'),
+        shortMin: num('#shortMin'),
+        longMin: num('#longMin'),
+        roundsBeforeLong: num('#roundsBeforeLong'),
+        openAtLogin: $('#openAtLogin').checked,
+        immediate,
+      });
+      const t = $('#toast');
+      t.textContent = immediate ? '已保存，立即生效' : '已保存，下一轮生效';
+      t.classList.add('show');
+      setTimeout(() => window.api.call('closeSettings'), 500);
+    });
+
+    const close = () => window.api.call('closeSettings');
+    $('#btn-close').addEventListener('click', close);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') close();
+    });
+    window.api.onState((s) => {
+      window.__lastState = s;
+    });
+    load();
+  </script>
+</body>
+</html>
