@@ -39,7 +39,7 @@ UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改
 2. **`tools/ui-smoke.js` 里硬编码了绝对路径** `'/data/usershare/AI-helper/timer'`（第 8、477、504 行）。移动或复制仓库后 `npm run test:ui` 必挂，要改成 `path.join(__dirname, '..')`。
 3. **`npm run dist:*` 会联网且必须设镜像**（见上方「命令」节），`github.com` 连不通时会静默卡 10 分钟才报错。
 4. **`src/ui/common.css` 是唯一的样式文件**，三个页面都 `<link href="common.css">` 引用同目录的这一份。根目录曾有一份同名死副本（无任何引用），已于 2026-10-14 删除，别再在根目录建。
-5. **开机自启在 Linux 上无法验证**。Electron 的 `app.setLoginItemSettings` / `getLoginItemSettings` **在 Linux 是空操作**（实测传 `openAtLogin: true` 读回仍是 `false`，`path` 被直接丢弃），只有 Windows / macOS 生效。所以决策逻辑做成了纯函数 `src/paths.js` 的 `buildLoginItemOptions(cfg, env, execPath)` 交给单测覆盖，**真机行为仍需在 Windows 上人工验证一次**（设置里勾开机自启 → 重启看是否自启）。别再写基于该 API 的 Linux UI 用例，注定失败。
+5. **开机自启：只有 Windows 真的能用。** Electron 的 `app.setLoginItemSettings` / `getLoginItemSettings` **在 Linux 是空操作**——实测传 `openAtLogin: true` 等 1.5s 再读仍是 `false`，且 `~/.config/autostart/` 什么都没写。所以：① 决策逻辑做成了纯函数 `src/paths.js` 的 `buildLoginItemOptions(cfg, env, execPath)` 交给单测覆盖，**别再写基于该 API 的 Linux UI 用例，注定失败**；② **`PORTABLE_EXECUTABLE_FILE` / `PORTABLE_EXECUTABLE_DIR` 只有 Windows portable（NSIS 启动器）会注入**——AppImage 的 `AppRun` 里没有，`npm start` 也没有，所以那个 path 修复实际只对 Windows exe 生效；③ 设置页的「开机自动启动」在 Linux 上**只落库不生效**，这是**已知未实现项**（要做就自己写 `~/.config/autostart/*.desktop`），别以为它坏了反复排查。真机行为仍需在 Windows 上人工验证一次。
 6. `docs/休息小助手方案.md` §3.3 的窗口尺寸已于 v2.2 订正，**以 `src/windows.js` 为准**（popup 380×352、panel 340×556、settings 372×560）。
 
 ## 架构约定（不读代码看不出来的）

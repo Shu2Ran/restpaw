@@ -205,7 +205,7 @@
       <tr><td class="k">长休息时长</td><td>长休息的分钟数（5–120）。</td></tr>
       <tr><td class="k">第几轮后长休</td><td>每完成几轮工作安排一次长休息（2–8）。</td></tr>
       <tr><td class="k">时长改动生效</td><td><strong>下一轮</strong>（本轮按原时长走完）或<strong>立即</strong>（按新时长重算当前剩余；已超时则立即结束本轮）。</td></tr>
-      <tr><td class="k">开机自动启动</td><td>开机自动在托盘启动。</td></tr>
+      <tr><td class="k">开机自动启动</td><td>开机自动在托盘启动。<br /><strong>⚠️ 目前只在 Windows 上生效。</strong>Linux 上这个选项<strong>会保存但不起作用</strong>——系统的开机自启需要往 <code>~/.config/autostart/</code> 放一个 <code>.desktop</code> 文件，这个功能还没做。Linux 上想开机自启的话，把 <code>休息小助手-*.AppImage</code> 拖进系统设置的「开机启动 / 自启动」应用列表里即可（路径不能变）。</td></tr>
     </table>
   </div>
 
