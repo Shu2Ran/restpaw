@@ -17,9 +17,19 @@ npm run test:ui       # 跑全部 UI 端到端（Playwright 驱动 Electron）
 npm start             # 先重建图标再 electron .
 npm run icon          # tools/make-icon.js，纯 zlib 手绘，产出 build/icon.{png,ico}
 node tools/build-cats.js   # 猫图素材管线，需要系统 ImageMagick（convert/identify），非 npm 依赖
-npm run dist:win      # 产物 out/休息小助手 1.0.0.exe（约 100MB）
+npm run dist:win      # 产物 out/休息小助手 <版本号>.exe（约 100MB）
 npm run dist:linux
 ```
+
+**打包必须先设镜像**，否则会卡死 10 分钟后超时（`Timeout awaiting 'request' for 600000ms`，卡在 `downloaded label=electron progress=100%` 之后）：
+
+```bash
+export ELECTRON_MIRROR="https://registry.npmmirror.com/-/binary/electron/"
+export ELECTRON_BUILDER_BINARIES_MIRROR="https://registry.npmmirror.com/-/binary/electron-builder-binaries/"
+npm run dist:linux
+```
+
+原因：`github.com` 在本机时通时不通（`releases/download` 路径尤其容易连上就卡死），而 `objects.githubusercontent.com`、`registry.npmmirror.com` 都正常。**注意这跟测试无关**——`tools/ui-smoke.js` 用 playwright 的 `_electron.launch()` 直接跑 `node_modules/electron/dist/electron` + 源码目录，全程不经过 electron-builder、不下载任何东西。
 
 UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改掉过滤关键字。
 
@@ -27,8 +37,9 @@ UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改
 
 1. **开着 RestPaw 时什么都跑不起来。** `app.requestSingleInstanceLock()` 在 `src/main.js:12` 执行，早于 `RESTPAW_USER_DATA` 覆盖（`:20-26`），所以单例锁**永远锁在默认 userData `~/.config/休息小助手`**，跟 `RESTPAW_USER_DATA` 无关。只要有实例在跑（`ps aux | grep restpaw`，注意已安装的 AppImage/exe 也算），`npm start` 和**每一条** ui-smoke 用例都会以 exitCode=0 瞬间退出，Playwright 报 `Target page, context or browser has been closed`——**不是测试挂了，是没跑起来**。先杀掉在跑的实例。
 2. **`tools/ui-smoke.js` 里硬编码了绝对路径** `'/data/usershare/AI-helper/timer'`（第 8、477、504 行）。移动或复制仓库后 `npm run test:ui` 必挂，要改成 `path.join(__dirname, '..')`。
-3. **`src/ui/common.css` 是唯一的样式文件**，三个页面都 `<link href="common.css">` 引用同目录的这一份。根目录曾有一份同名死副本（无任何引用），已于 2026-10-14 删除，别再在根目录建。
-4. `docs/休息小助手方案.md` §2 把窗口管理器写成 `windows/` 目录，实际是单文件 `src/windows.js`；§3.3 的窗口尺寸也已过时，**以 `src/windows.js` 为准**（popup 380×352、panel 340×556、settings 372×560）。
+3. **`npm run dist:*` 会联网且必须设镜像**（见上方「命令」节），`github.com` 连不通时会静默卡 10 分钟才报错。
+4. **`src/ui/common.css` 是唯一的样式文件**，三个页面都 `<link href="common.css">` 引用同目录的这一份。根目录曾有一份同名死副本（无任何引用），已于 2026-10-14 删除，别再在根目录建。
+5. `docs/休息小助手方案.md` §3.3 的窗口尺寸已于 v2.2 订正，**以 `src/windows.js` 为准**（popup 380×352、panel 340×556、settings 372×560）。
 
 ## 架构约定（不读代码看不出来的）
 
