@@ -2,7 +2,7 @@
   "name": "restpaw",
   "productName": "休息小助手",
   "desktopName": "RestPaw",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "轻量可爱的番茄式休息提醒小工具（托盘常驻）",
   "main": "src/main.js",
   "license": "MIT",
