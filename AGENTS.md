@@ -83,3 +83,11 @@ userData（`~/.config/休息小助手`）下三个 JSON：`config.json` / `state
 ## 流程
 
 `docs/休息小助手方案.md` 是唯一权威方案，末尾有修订记录表。改行为前先跟用户确认，落地后在修订记录里加一行（日期 + 版本号 + 改动摘要 + 测试条数）。
+
+## 版本号
+
+**发布版本 = `Vx.y`**（当前 **V2.1**）。小数点**后**加一 = 该大版本内的小 bug 修复 / 功能迭代（V2.1 → V2.2）；小数点**前**加一 = 大版本修改，比如迭代出下一个版本（V2.1 → V3.0）。
+
+`package.json` 里必须写合法 semver 三段（npm 与 electron-builder 都会校验，`2.1` 会被 electron-builder 的 `fixVersionField` 拒掉），所以 **V2.1 写作 `2.1.0`**，产物名也据此生成（`休息小助手 2.1.0.exe`）。改版本号时 `package.json` 和 `package-lock.json` 要一起改（`npm install --package-lock-only`）。
+
+方案文末修订记录里的 `v1.0 / v2.1.1 / v2.2` 是**开发迭代流水号**，跟发布版本号不是一回事，别混淆。
