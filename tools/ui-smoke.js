@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const assert = require('node:assert/strict');
 
-const ROOT = '/data/usershare/AI-helper/timer';
+const ROOT = path.join(__dirname, '..');
 const ELECTRON = path.join(ROOT, 'node_modules', 'electron', 'dist', 'electron');
 
 function tmpUserData() {
@@ -106,6 +106,36 @@ async function findSettings(ctx) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const CATS_DIR = path.join(ROOT, 'src', 'ui', 'assets', 'cats');
+const FIXTURE_CATS = path.join(ROOT, 'tests', 'fixtures', 'cats');
+
+/**
+ * 把 tests/fixtures/cats/ 里的**合成**素材铺进素材目录，跑完还原。
+ *
+ * 为什么需要：作者的真实猫图不进版本库（属个人素材），但没有图片素材就没法
+ * 验证「两只猫随机 / 眨眼 / 伸懒腰 / 素材损坏回退」这些行为。本机若已有真实
+ * 素材会先备份再原样还原，所以本地开发跑测试不会动到你的猫。
+ */
+async function withStagedCats(fn) {
+  const backup = new Map();
+  if (fs.existsSync(CATS_DIR)) {
+    for (const f of fs.readdirSync(CATS_DIR)) backup.set(f, fs.readFileSync(path.join(CATS_DIR, f)));
+  }
+  fs.mkdirSync(CATS_DIR, { recursive: true });
+  for (const f of fs.readdirSync(FIXTURE_CATS)) {
+    if (f === 'README.md') continue;
+    fs.writeFileSync(path.join(CATS_DIR, f), fs.readFileSync(path.join(FIXTURE_CATS, f)));
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const f of fs.readdirSync(CATS_DIR)) {
+      if (!backup.has(f)) fs.rmSync(path.join(CATS_DIR, f), { force: true });
+    }
+    for (const [f, buf] of backup) fs.writeFileSync(path.join(CATS_DIR, f), buf);
+  }
+}
 
 const waitVis = async (page, key, val, timeout = 4000) => {
   const t0 = Date.now();
@@ -474,7 +504,6 @@ test('素材缺失时回退手绘 SVG 猫', async () => {
   const dir = tmpUserData();
   const fs2 = require('fs');
   const path2 = require('path');
-  const ROOT = '/data/usershare/AI-helper/timer';
   const backup = path2.join(dir, 'manifest-backup.json');
   fs2.copyFileSync(path2.join(ROOT, 'src/ui/assets/cats/manifest.json'), backup);
   try {
@@ -501,7 +530,6 @@ test('素材缺失时回退手绘 SVG 猫', async () => {
 test('图片文件损坏/丢失时回退手绘 SVG 猫', async () => {
   const fs2 = require('fs');
   const path2 = require('path');
-  const ROOT = '/data/usershare/AI-helper/timer';
   const catsDir = path2.join(ROOT, 'src/ui/assets/cats');
   const backups = {};
   for (const f of fs2.readdirSync(catsDir)) {
@@ -801,18 +829,23 @@ test('工作中猫咪会眨眼：9 秒内出现闭眼图并自动睁回', async 
   });
 });
 
+// 整轮跑之前统一把合成猫素材铺进素材目录，跑完还原。
+// 作者的真实猫图不进版本库，但没有图片素材就没法验证换猫/眨眼/伸懒腰/素材回退。
+// 本机若已有真实素材会原样备份还原，所以本地开发跑测试不会动到你的猫。
 (async () => {
   const only = process.argv[2];
   const list = only ? tests.filter((t) => t.name.includes(only)) : tests;
   let failed = 0;
-  for (const t of list) {
-    try {
-      await t.fn();
-      console.log(`ok - ${t.name}`);
-    } catch (e) {
-      failed++;
-      console.error(`not ok - ${t.name}\n  ${e.stack.split('\n').slice(0, 3).join('\n  ')}`);
+  await withStagedCats(async () => {
+    for (const t of list) {
+      try {
+        await t.fn();
+        console.log(`ok - ${t.name}`);
+      } catch (e) {
+        failed++;
+        console.error(`not ok - ${t.name}\n  ${e.stack.split('\n').slice(0, 3).join('\n  ')}`);
+      }
     }
-  }
+  });
   process.exit(failed ? 1 : 0);
 })();

@@ -36,7 +36,7 @@ UI 用例名是中文子串匹配的（`process.argv[2]`），改用例名会改
 ## 会直接把你卡住的坑
 
 1. **开着 RestPaw 时什么都跑不起来。** `app.requestSingleInstanceLock()` 在 `src/main.js:12` 执行，早于 `RESTPAW_USER_DATA` 覆盖（`:20-26`），所以单例锁**永远锁在默认 userData `~/.config/休息小助手`**，跟 `RESTPAW_USER_DATA` 无关。只要有实例在跑（`ps aux | grep restpaw`，注意已安装的 AppImage/exe 也算），`npm start` 和**每一条** ui-smoke 用例都会以 exitCode=0 瞬间退出，Playwright 报 `Target page, context or browser has been closed`——**不是测试挂了，是没跑起来**。先杀掉在跑的实例。
-2. **`tools/ui-smoke.js` 里硬编码了绝对路径** `'/data/usershare/AI-helper/timer'`（第 8、477、504 行）。移动或复制仓库后 `npm run test:ui` 必挂，要改成 `path.join(__dirname, '..')`。
+2. **猫图素材不进版本库**（作者的真实猫，属个人素材）。fresh clone 后 `src/ui/assets/cats/` 只有 README.md，程序自动回退到内联手绘 SVG 猫。UI 测试靠 `tests/fixtures/cats/` 里的**合成色块猫**（`node tools/make-test-cats.js` 生成）——runner 外层的 `withStagedCats()` 会铺进去、跑完原样还原，所以**跑测试不会动到本地真实猫图**。加猫/改猫走 `src/ui/assets/cats/README.md`。
 3. **`npm run dist:*` 会联网且必须设镜像**（见上方「命令」节），`github.com` 连不通时会静默卡 10 分钟才报错。
 4. **`src/ui/common.css` 是唯一的样式文件**，三个页面都 `<link href="common.css">` 引用同目录的这一份。根目录曾有一份同名死副本（无任何引用），已于 2026-10-14 删除，别再在根目录建。
 5. **开机自启：只有 Windows 真的能用。** Electron 的 `app.setLoginItemSettings` / `getLoginItemSettings` **在 Linux 是空操作**——实测传 `openAtLogin: true` 等 1.5s 再读仍是 `false`，且 `~/.config/autostart/` 什么都没写。所以：① 决策逻辑做成了纯函数 `src/paths.js` 的 `buildLoginItemOptions(cfg, env, execPath)` 交给单测覆盖，**别再写基于该 API 的 Linux UI 用例，注定失败**；② **`PORTABLE_EXECUTABLE_FILE` / `PORTABLE_EXECUTABLE_DIR` 只有 Windows portable（NSIS 启动器）会注入**——AppImage 的 `AppRun` 里没有，`npm start` 也没有，所以那个 path 修复实际只对 Windows exe 生效；③ 设置页的「开机自动启动」在 Linux 上**只落库不生效**，这是**已知未实现项**（要做就自己写 `~/.config/autostart/*.desktop`），别以为它坏了反复排查。真机行为仍需在 Windows 上人工验证一次。

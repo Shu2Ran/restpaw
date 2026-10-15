@@ -1,0 +1,29 @@
+MIT License
+
+Copyright (c) 2026 ziyang
+
+本许可仅适用于本仓库的**源代码**（`src/`、`tools/`、`tests/`、`docs/` 下的文本文件）。
+
+**不适用于** `src/ui/assets/cats/` 下的猫图素材（PNG 等二进制资源）与 `cats-raw/`
+下的原图——那是作者真实猫咪的形象，属个人素材，未纳入版本库，也未按本许可授权。
+详见 `src/ui/assets/cats/README.md`。
+
+---
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -13,3 +13,11 @@ Thumbs.db
 
 # 猫图构建管线的中间产物
 src/ui/assets/cats/*.tmp
+
+# ── 猫图素材：不随代码分发 ──────────────────────────────
+# 作者的两只猫是真实存在的动物，形象属于个人素材，只授权使用、不开放再分发。
+# fresh clone 下来的程序会自动回退到内联手绘 SVG 猫（功能不受影响）。
+# 想换成自己的猫 → 见 src/ui/assets/cats/README.md
+cats-raw/
+src/ui/assets/cats/*.png
+src/ui/assets/cats/manifest.json
