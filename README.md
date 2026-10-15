@@ -151,7 +151,7 @@ npm start                   # 开发运行
 ```bash
 export ELECTRON_MIRROR="https://registry.npmmirror.com/-/binary/electron/"
 export ELECTRON_BUILDER_BINARIES_MIRROR="https://registry.npmmirror.com/-/binary/electron-builder-binaries/"
-npm run dist:linux    # AppImage + tar.gz
+npm run dist:linux    # AppImage
 npm run dist:win      # Windows 便携 exe
 ```
 
