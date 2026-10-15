@@ -87,8 +87,15 @@ userData（`~/.config/休息小助手`）下三个 JSON：`config.json` / `state
 
 ## 版本号
 
-**发布版本 = `Vx.y`**（当前 **V2.1**）。小数点**后**加一 = 该大版本内的小 bug 修复 / 功能迭代（V2.1 → V2.2）；小数点**前**加一 = 大版本修改，比如迭代出下一个版本（V2.1 → V3.0）。
+**发布版本 = `Vx.y`**（当前 **V2.2**，`package.json` 写 `2.2.0`）。小数点**后**加一 = 该大版本内的小 bug 修复 / 功能迭代（V2.2 → V2.3）；小数点**前**加一 = 大版本修改，比如迭代出下一个版本（V2.2 → V3.0）。
 
-`package.json` 里必须写合法 semver 三段（npm 与 electron-builder 都会校验，`2.1` 会被 electron-builder 的 `fixVersionField` 拒掉），所以 **V2.1 写作 `2.1.0`**，产物名也据此生成（`休息小助手 2.1.0.exe`）。改版本号时 `package.json` 和 `package-lock.json` 要一起改（`npm install --package-lock-only`）。
+`package.json` 里必须写合法 semver 三段（npm 与 electron-builder 都会校验，`2.1` 会被 electron-builder 的 `fixVersionField` 拒掉），所以 **V2.2 写作 `2.2.0`**，产物名也据此生成（`休息小助手 2.2.0.exe`）。改版本号时 `package.json` 和 `package-lock.json` 要一起改（`npm install --package-lock-only`）。
 
-方案文末修订记录里的 `v1.0 / v2.1.1 / v2.2` 是**开发迭代流水号**，跟发布版本号不是一回事，别混淆。
+**⚠️ 版本号必须四处同步，少改一处就会留下前后矛盾的文档**（都踩过）：
+
+1. `package.json` 的 `version`
+2. `package-lock.json` 的 `version`（`npm install --package-lock-only`）
+3. `AGENTS.md` 本节 + `docs/休息小助手方案.md`「版本约定」小节的「当前发布版本」
+4. `README.md` 安装那一节的产物文件名（`休息小助手-2.2.0.exe` / `.AppImage`，共 4 处）
+
+方案文末修订记录里的 `v1.0 / v2.1.1 / v2.2` 是**开发迭代流水号**，与发布版本号不是一回事，别混淆。
