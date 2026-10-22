@@ -166,6 +166,43 @@ test('弹窗出现并可秒关（Esc / 跳过本次）', async () => {
   });
 });
 
+test('稍后 5 分钟：点后弹窗立即关闭，snoozeUntil 生效', async () => {
+  const dir = tmpUserData();
+  await withApp(dir, Object.assign({}, IDLE, { phase: 'work', deadline: NOW() - 1000, round: 1, awaiting: 'work-end', nextBreak: 'short' }), async (ctx) => {
+    const popup = await findPopup(ctx);
+    await waitVis(popup, 'popup', true);
+    await popup.click('#btn-snooze');
+    // 回归防护：旧实现没有处理 'snoozed' 事件，弹窗原地不动零反馈，看起来像按钮坏了
+    await waitVis(popup, 'popup', false, 5000);
+    const s = readState(dir);
+    assert.ok(s.snoozeUntil > NOW(), `稍后应设好 5 分钟后的提醒点，实际 ${s.snoozeUntil}`);
+    assert.equal(s.awaiting, 'work-end', '稍后期间保持等待决策（工时继续累计）');
+  });
+});
+
+test('稍后到期补弹：重新弹窗且不重复计入工作轮', async () => {
+  const dir = tmpUserData();
+  const state = Object.assign({}, IDLE, {
+    phase: 'work',
+    deadline: NOW() - 1000,
+    round: 1,
+    awaiting: 'work-end',
+    nextBreak: 'short',
+    snoozeUntil: NOW() + 3000, // 3 秒后到期，直接续上「点了稍后」的现场
+  });
+  const stats = { day: today(), workRounds: 1, shortRests: 0, longRests: 0, skippedRests: 0, skippedWorks: 0 };
+  await withApp(dir, state, stats, async (ctx) => {
+    const popup = await findPopup(ctx);
+    await waitVis(popup, 'popup', true);
+    // 到期后补弹：snoozeUntil 清零 + 弹窗仍在
+    await popup.waitForFunction(() => window.__lastState && window.__lastState.snoozeUntil === 0, null, { timeout: 8000 });
+    await waitVis(popup, 'popup', true);
+    const st = JSON.parse(fs.readFileSync(path.join(dir, 'stats.json'), 'utf8'));
+    // 回归防护：旧实现补弹时无条件 +1，点一次「稍后」今日工作轮会 1→2
+    assert.equal(st.workRounds, 1, `补弹不应重复计轮，实际 ${st.workRounds}`);
+  });
+});
+
 test('弹窗去休息后转为休息倒计时窗，Esc 收起不打断', async () => {
   const dir = tmpUserData();
   await withApp(dir, Object.assign({}, IDLE, { phase: 'work', deadline: NOW() - 1000, round: 1, awaiting: 'work-end', nextBreak: 'short' }), async (ctx) => {

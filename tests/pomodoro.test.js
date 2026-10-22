@@ -166,6 +166,107 @@ test('稍后提醒：到期后再次触发 work-end', () => {
   assert.ok(h.events.slice(before).some((e) => e.type === 'work-end'));
 });
 
+test('work-end 首发带 replay:false，「稍后」到期补弹带 replay:true', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN + 1000);
+  h.engine.tick();
+  assert.equal(h.last('work-end').replay, false, '首发不算补弹，应计轮');
+
+  h.engine.snooze(5);
+  h.advance(5 * MIN + 1000);
+  h.engine.tick();
+  const re = h.events.filter((e) => e.type === 'work-end');
+  assert.equal(re.length, 2, '到期应再弹一次');
+  assert.equal(re[1].payload.replay, true, '补弹必须带 replay，否则今日工作轮重复计数');
+});
+
+test('跳过工作后「稍后」补弹：不重复计 skippedWorks', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(10 * MIN);
+  h.engine.skipWork();
+  assert.equal(h.last('work-end').reason, 'skip');
+  assert.equal(h.last('work-end').replay, false);
+  h.engine.snooze(5);
+  h.advance(5 * MIN + 1000);
+  h.engine.tick();
+  const re = h.events.filter((e) => e.type === 'work-end');
+  assert.equal(re[1].payload.replay, true, 'skip 轮的补弹同样算 replay');
+  assert.equal(re[1].payload.reason, 'skip');
+});
+
+test('会议模式压住首发：解除积压补弹不算 replay（计轮放行）', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.engine.setMute(60);
+  h.advance(45 * MIN + 1000);
+  h.engine.tick();
+  assert.equal(h.events.filter((e) => e.type === 'work-end').length, 0, '静音压住不发');
+  assert.equal(h.engine.workEndFired, false, '首发被压住＝还没发过');
+
+  h.advance(20 * MIN + 1000);
+  h.engine.tick(); // 静音到期 → _flushMutedEnd 补弹
+  const re = h.events.filter((e) => e.type === 'work-end');
+  assert.equal(re.length, 1);
+  assert.equal(re[0].payload.replay, false, '首发补发要允许计轮');
+  assert.equal(h.engine.workEndFired, true);
+});
+
+test('首发后再进会议模式：解除积压补弹算 replay（不重复计轮）', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN + 1000);
+  h.engine.tick(); // 首发，已计轮
+  assert.equal(h.last('work-end').replay, false);
+  h.engine.snooze(5); // 用户点了稍后
+  h.engine.setMute(60); // 随后进会议模式
+  h.advance(5 * MIN + 1000);
+  h.engine.tick(); // 稍后到期但静音 → 转积压
+  assert.equal(h.events.filter((e) => e.type === 'work-end').length, 1);
+  h.engine.clearMute();
+  const re = h.events.filter((e) => e.type === 'work-end');
+  assert.equal(re.length, 2);
+  assert.equal(re[1].payload.replay, true, '首发已发过，积压补弹算 replay');
+});
+
+test('workEndFired 随断点保存恢复，重启后补弹不重复计轮', () => {
+  const h = makeEngine();
+  h.engine.start();
+  h.advance(45 * MIN + 1000);
+  h.engine.tick();
+  h.engine.snooze(5);
+  const saved = JSON.parse(JSON.stringify(h.engine.toJSON()));
+  assert.equal(saved.workEndFired, true, '首发标记应落盘');
+
+  const h2 = makeEngine();
+  h2.engine.restore(saved);
+  assert.equal(h2.engine.workEndFired, true, '恢复后仍认首发已发过');
+  // h2 时钟从基点重开，restore 回读的 snoozeUntil 在 45min+5min 处，必须推进到该点之后
+  h2.advance(45 * MIN + 6 * MIN);
+  h2.engine.tick();
+  const re = h2.events.filter((e) => e.type === 'work-end');
+  assert.equal(re.length, 1);
+  assert.equal(re[0].payload.replay, true, '重启后的补弹不应再计一轮');
+});
+
+test('旧版 state.json 无 workEndFired：按是否积压推断', () => {
+  // 已弹过窗（无积压）→ 视为已发过
+  const fired = makeEngine();
+  fired.engine.restore({ phase: 'work', deadline: fired.now() + MIN, round: 1, awaiting: 'work-end', muteUntil: 0, snoozeUntil: fired.now() + MIN });
+  assert.equal(fired.engine.workEndFired, true);
+
+  // 静音压住从未发过（有积压）→ 视为未发过，解除静音时补发仍计轮
+  const pending = makeEngine();
+  pending.engine.restore({ phase: 'work', deadline: pending.now() + MIN, round: 1, awaiting: 'work-end', muteUntil: 'manual' });
+  assert.equal(pending.engine.mutedEndPending, true);
+  assert.equal(pending.engine.workEndFired, false);
+  pending.engine.clearMute();
+  const re = pending.events.filter((e) => e.type === 'work-end');
+  assert.equal(re.length, 1);
+  assert.equal(re[0].payload.replay, false);
+});
+
 test('暂停冻结倒计时，恢复后继续', () => {
   const h = makeEngine();
   h.engine.start();

@@ -82,6 +82,7 @@ class Pomodoro {
     this.lastBreak = null;
     this.lastReason = null;
     this.mutedEndPending = false;
+    this.workEndFired = false;
   }
 
   restore(data) {
@@ -107,6 +108,10 @@ class Pomodoro {
     this.workedDay = typeof data.workedDay === 'string' ? data.workedDay : dayKey(this._now());
     this.lastAccrued = this._now();
     this.mutedEndPending = !!(this.awaiting && (this.muteUntil === Infinity || this.muteUntil > this._now()));
+    // 本轮 work-end 是否已首发过（决定补弹算不算 replay、要不要重复计轮）。
+    // 旧版 state.json 没有该字段：停在等待决策且无积压说明当时已弹过窗并计过数（true）；
+    // 若有积压（mutedEndPending），说明首发被会议模式压住从未发过，计轮还没做（false）。
+    this.workEndFired = data.workEndFired === undefined ? this.awaiting === 'work-end' && !this.mutedEndPending : !!data.workEndFired;
   }
 
   toJSON() {
@@ -123,6 +128,7 @@ class Pomodoro {
       nextBreak: this.nextBreak,
       lastBreak: this.lastBreak,
       lastReason: this.lastReason,
+      workEndFired: this.workEndFired,
       workedMs: this.workedMs,
       workedDay: this.workedDay,
     };
@@ -191,6 +197,7 @@ class Pomodoro {
     this.frozen = false;
     this.frozenRemaining = 0;
     this.lastAccrued = now;
+    this.workEndFired = false; // 新一轮开始，work-end 重新获得首发资格
   }
 
   pause(now) {
@@ -262,7 +269,11 @@ class Pomodoro {
     this.mutedEndPending = false;
     if (mode === 'manual') return;
     if (this.awaiting === 'work-end') {
-      this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason || 'complete', deferred: true });
+      // 积压补弹：若首发已被静音压住从未发过（workEndFired=false），这次仍是首发、要计轮；
+      // 若首发已发过（如稍后等待期又进会议模式），这次是补弹，不算 replay 会重复计轮。
+      const replay = this.workEndFired;
+      this.workEndFired = true;
+      this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason || 'complete', deferred: true, replay });
     } else if (this.awaiting === 'break-end') {
       this._fire('break-end', { auto: false, deferred: true });
     }
@@ -342,7 +353,9 @@ class Pomodoro {
         if (this.muted(now)) {
           this.mutedEndPending = true;
         } else {
-          this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason || 'complete', deferred: false });
+          // 「稍后」到期补弹：本轮 work-end 首发早已发过（用户就是看到了弹窗才点的稍后），
+          // 一律算 replay，主进程据此不重复计入今日工作轮。
+          this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason || 'complete', deferred: false, replay: true });
         }
       }
       return;
@@ -389,7 +402,8 @@ class Pomodoro {
       this.mutedEndPending = true;
       return;
     }
-    this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason, deferred: false });
+    this.workEndFired = true;
+    this._fire('work-end', { nextBreak: this.nextBreak, reason: this.lastReason, deferred: false, replay: false });
   }
 
   _onBreakEnd(now, early) {

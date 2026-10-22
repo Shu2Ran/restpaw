@@ -147,8 +147,12 @@ function bootstrap() {
     const now = Date.now();
     switch (type) {
       case 'work-end':
-        store.bump('workRounds', 1);
-        if (payload.reason === 'skip') store.bump('skippedWorks', 1);
+        // replay = 「稍后」到期 / 会议模式解除积压的补弹。本轮的 +1 在首发时已经做过，
+        // 补弹只负责再弹一次窗，不能再计一轮（否则点一次「稍后」今日工作轮多 1）。
+        if (!payload.replay) {
+          store.bump('workRounds', 1);
+          if (payload.reason === 'skip') store.bump('skippedWorks', 1);
+        }
         showPopup();
         break;
       case 'break-start':
@@ -162,6 +166,12 @@ function bootstrap() {
         break;
       case 'break-end':
         showPopup();
+        break;
+      case 'snoozed':
+        // 点「稍后 5 分钟」＝先关窗、5 分钟后再弹同一个窗（方案 §3.1「重复同一弹窗」）。
+        // 不关的话弹窗原地不动零反馈，看起来就像按钮坏了（实测反馈的问题）。
+        // 注意 awaiting 仍是 work-end，所以 currentPrompt() 仍是 'work-end'，关窗只能在这里做。
+        wm.hidePopup();
         break;
       case 'muted':
         wm.hidePopup();
