@@ -22,7 +22,7 @@
 
 ### Windows
 
-下载 `休息小助手-2.2.0.exe`（便携单文件，双击即用，无需安装），
+下载 `休息小助手-2.3.0.exe`（便携单文件，双击即用，无需安装），
 放到任意目录或 U 盘都行。数据存在 `%APPDATA%\休息小助手\`。
 
 首次运行 Windows 可能提示「已保护你的电脑」——点「更多信息」→「仍要运行」即可
@@ -30,11 +30,11 @@
 
 ### Linux
 
-下载 `休息小助手-2.2.0.AppImage`：
+下载 `休息小助手-2.3.0.AppImage`：
 
 ```bash
-chmod +x 休息小助手-2.2.0.AppImage
-./休息小助手-2.2.0.AppImage
+chmod +x 休息小助手-2.3.0.AppImage
+./休息小助手-2.3.0.AppImage
 ```
 
 数据存在 `~/.config/休息小助手/`。
@@ -135,8 +135,8 @@ npm start        # 会先重建图标再启动
 ## 开发
 
 ```bash
-npm test                    # 63 条单元测试（引擎 / 存储 / 抽签袋 / 路径），不需要 Electron
-npm run test:ui             # 25 条 UI 端到端（Playwright 驱动 Electron）
+npm test                    # 69 条单元测试（引擎 / 存储 / 抽签袋 / 路径），不需要 Electron
+npm run test:ui             # 27 条 UI 端到端（Playwright 驱动 Electron）
 node tools/ui-smoke.js 眨眼  # 只跑名字含「眨眼」的用例（用例名是中文子串匹配）
 npm start                   # 开发运行
 ```
