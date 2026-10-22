@@ -14,7 +14,7 @@
     "test:ui": "node tools/ui-smoke.js",
     "icon": "node tools/make-icon.js",
     "dist:win": "npm run icon && node node_modules/electron-builder/cli.js --win portable",
-    "dist:linux": "npm run icon && node node_modules/electron-builder/cli.js --linux AppImage tar.gz",
+    "dist:linux": "npm run icon && node node_modules/electron-builder/cli.js --linux AppImage",
     "pack:dir": "node node_modules/electron-builder/cli.js --dir"
   },
   "devDependencies": {
